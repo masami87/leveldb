@@ -21,6 +21,7 @@
 
 namespace leveldb {
 
+// NOTE: 记录状态信息，保存错误码
 class LEVELDB_EXPORT Status {
  public:
   // Create a success status.

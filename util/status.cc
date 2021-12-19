@@ -12,8 +12,8 @@ namespace leveldb {
 
 const char* Status::CopyState(const char* state) {
   uint32_t size;
-  std::memcpy(&size, state, sizeof(size));
-  char* result = new char[size + 5];
+  std::memcpy(&size, state, sizeof(size)); // 拷贝msg的长度
+  char* result = new char[size + 5]; // state是 长度 + 错误码 + msg, 因此前面的信息还要5个字节
   std::memcpy(result, state, size + 5);
   return result;
 }

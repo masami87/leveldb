@@ -24,6 +24,7 @@
 
 namespace leveldb {
 
+// NOTE: 自定义的字符串类
 class LEVELDB_EXPORT Slice {
  public:
   // Create an empty slice.
@@ -39,6 +40,7 @@ class LEVELDB_EXPORT Slice {
   Slice(const char* s) : data_(s), size_(strlen(s)) {}
 
   // Intentionally copyable.
+  // NOTE: 这里有意的允许浅拷贝，而String是深拷贝的
   Slice(const Slice&) = default;
   Slice& operator=(const Slice&) = default;
 
