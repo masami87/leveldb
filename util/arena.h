@@ -13,6 +13,7 @@
 
 namespace leveldb {
 
+// NOTE: 自定义的内存分配器
 class Arena {
  public:
   Arena();
@@ -23,6 +24,8 @@ class Arena {
   ~Arena();
 
   // Return a pointer to a newly allocated memory block of "bytes" bytes.
+  // NOTE: 大于1024字节时直接new, 小于1024时多块内存共用一个4096的block的大小
+  // 避免重新new的开销
   char* Allocate(size_t bytes);
 
   // Allocate memory with the normal alignment guarantees provided by malloc.

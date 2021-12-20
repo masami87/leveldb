@@ -52,6 +52,8 @@ char* EncodeVarint64(char* dst, uint64_t value);
 // REQUIRES: dst has enough space for the value being written
 
 inline void EncodeFixed32(char* dst, uint32_t value) {
+  // NOTE: 把32位的int值 value，放入dst指定的内存中
+  // 可以看到低序写入较低的位置，也就是小端字节序
   uint8_t* const buffer = reinterpret_cast<uint8_t*>(dst);
 
   // Recent clang and gcc optimize this to a single mov / str instruction.
