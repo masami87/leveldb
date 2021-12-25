@@ -19,6 +19,8 @@ namespace leveldb {
 class Slice;
 class WritableFile;
 
+// NOTE: 一些将数字转换为字符串的功能函数
+
 // Append a human-readable printout of "num" to *str
 void AppendNumberTo(std::string* str, uint64_t num);
 

@@ -48,6 +48,8 @@ class SequentialFile;
 class Slice;
 class WritableFile;
 
+// NOTE: 对于不同的os提供不同的ENV
+// ENV中提供了读写,使用线程等接口，需要来自不同os的实现
 class LEVELDB_EXPORT Env {
  public:
   Env();
@@ -314,6 +316,8 @@ class LEVELDB_EXPORT FileLock {
   virtual ~FileLock();
 };
 
+// TODO: __attribute__?
+// 注意变参函数如何使用
 // Log the specified data to *info_log if info_log is non-null.
 void Log(Logger* info_log, const char* format, ...)
 #if defined(__GNUC__) || defined(__clang__)

@@ -8,6 +8,7 @@
 // Use Clang's thread safety analysis annotations when available. In other
 // environments, the macros receive empty definitions.
 // Usage documentation: https://clang.llvm.org/docs/ThreadSafetyAnalysis.html
+// NOTE: 看上面的clang文档
 
 #if !defined(THREAD_ANNOTATION_ATTRIBUTE__)
 

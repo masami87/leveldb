@@ -40,10 +40,10 @@ FileLock::~FileLock() = default;
 
 void Log(Logger* info_log, const char* format, ...) {
   if (info_log != nullptr) {
-    std::va_list ap;
-    va_start(ap, format);
+    std::va_list ap; // NOTE: 存放变参列表
+    va_start(ap, format); // 初始化变参列表为format后面的所有参数
     info_log->Logv(format, ap);
-    va_end(ap);
+    va_end(ap); // 结束获取变参
   }
 }
 

@@ -8,11 +8,6 @@
 #ifndef __Fuchsia__
 #include <sys/resource.h>
 #endif
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <unistd.h>
-
 #include <atomic>
 #include <cerrno>
 #include <cstddef>
@@ -24,13 +19,18 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/types.h>
 #include <thread>
 #include <type_traits>
+#include <unistd.h>
 #include <utility>
 
 #include "leveldb/env.h"
 #include "leveldb/slice.h"
 #include "leveldb/status.h"
+
 #include "port/port.h"
 #include "port/thread_annotations.h"
 #include "util/env_posix_test_helper.h"
@@ -116,9 +116,9 @@ class PosixSequentialFile final : public SequentialFile {
     Status status;
     while (true) {
       ::ssize_t read_size = ::read(fd_, scratch, n);
-      if (read_size < 0) {  // Read error.
-        if (errno == EINTR) {
-          continue;  // Retry
+      if (read_size < 0) {     // Read error.
+        if (errno == EINTR) {  // NOTE: 这里是被中断打断因此重试
+          continue;            // Retry
         }
         status = PosixError(filename_, errno);
         break;
@@ -154,7 +154,7 @@ class PosixRandomAccessFile final : public RandomAccessFile {
       : has_permanent_fd_(fd_limiter->Acquire()),
         fd_(has_permanent_fd_ ? fd : -1),
         fd_limiter_(fd_limiter),
-        filename_(std::move(filename)) {
+        filename_(std::move(filename)) {  // TODO: 这里用了move, 为什么上面不用
     if (!has_permanent_fd_) {
       assert(fd_ == -1);
       ::close(fd);  // The file will be opened on every read.
@@ -182,7 +182,11 @@ class PosixRandomAccessFile final : public RandomAccessFile {
     assert(fd != -1);
 
     Status status;
-    ssize_t read_size = ::pread(fd, scratch, n, static_cast<off_t>(offset));
+    ssize_t read_size = ::pread(
+        fd, scratch, n,
+        static_cast<off_t>(
+            offset));  // NOTE: 注意这里使用pread从指定的offset开始读
+                       // 即先seek后read，并且两个操作是原子捆绑的,线程安全
     *result = Slice(scratch, (read_size < 0) ? 0 : read_size);
     if (read_size < 0) {
       // An error: return a non-ok status.
@@ -278,6 +282,7 @@ class PosixWritableFile final : public WritableFile {
     }
 
     // Can't fit in buffer, so need to do at least one write.
+    // NOTE: 代码到这里说明buffer已满，因此需要一次write
     Status status = FlushBuffer();
     if (!status.ok()) {
       return status;
@@ -330,6 +335,7 @@ class PosixWritableFile final : public WritableFile {
     return status;
   }
 
+  // NOTE: 不用缓冲区的直接写入
   Status WriteUnbuffered(const char* data, size_t size) {
     while (size > 0) {
       ssize_t write_result = ::write(fd_, data, size);
@@ -348,7 +354,7 @@ class PosixWritableFile final : public WritableFile {
   Status SyncDirIfManifest() {
     Status status;
     if (!is_manifest_) {
-      return status;
+      return status; // status::ok
     }
 
     int fd = ::open(dirname_.c_str(), O_RDONLY | kOpenBaseFlags);
@@ -361,6 +367,7 @@ class PosixWritableFile final : public WritableFile {
     return status;
   }
 
+  // TODO: ?
   // Ensures that all the caches associated with the given file descriptor's
   // data are flushed all the way to durable media, and can withstand power
   // failures.
@@ -471,7 +478,7 @@ class PosixFileLock : public FileLock {
 // Instances are thread-safe because all member data is guarded by a mutex.
 class PosixLockTable {
  public:
-  bool Insert(const std::string& fname) LOCKS_EXCLUDED(mu_) {
+  bool Insert(const std::string& fname) LOCKS_EXCLUDED(mu_) { // NOTE: LOCKS_EXCLUDED意为caller不能持有mu_，这是为了防止死锁
     mu_.Lock();
     bool succeeded = locked_files_.insert(fname).second;
     mu_.Unlock();
@@ -826,6 +833,7 @@ void PosixEnv::BackgroundThreadMain() {
 
 namespace {
 
+// NOTE: 单例模式
 // Wraps an Env instance whose destructor is never created.
 //
 // Intended usage:
