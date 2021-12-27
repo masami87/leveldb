@@ -20,6 +20,7 @@ class RandomAccessFile;
 struct ReadOptions;
 class TableCache;
 
+// NOTE: SSTable 
 // A Table is a sorted map from strings to strings.  Tables are
 // immutable and persistent.  A Table may be safely accessed from
 // multiple threads without external synchronization.

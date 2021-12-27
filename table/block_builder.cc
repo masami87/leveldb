@@ -79,6 +79,7 @@ void BlockBuilder::Add(const Slice& key, const Slice& value) {
     // See how much sharing to do with previous string
     const size_t min_length = std::min(last_key_piece.size(), key.size());
     while ((shared < min_length) && (last_key_piece[shared] == key[shared])) {
+      // NOTE: 递增计算相同前缀的部分！！！
       shared++;
     }
   } else {

@@ -14,6 +14,7 @@ namespace leveldb {
 
 struct Options;
 
+// NOTE: 构建data/meta/index block, 注意这些block是prefix compression，也就是key共享相同的前缀
 class BlockBuilder {
  public:
   explicit BlockBuilder(const Options* options);
