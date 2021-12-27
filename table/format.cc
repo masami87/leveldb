@@ -16,6 +16,7 @@ void BlockHandle::EncodeTo(std::string* dst) const {
   // Sanity check that all fields have been set
   assert(offset_ != ~static_cast<uint64_t>(0));
   assert(size_ != ~static_cast<uint64_t>(0));
+  // 放入两个变长64即可
   PutVarint64(dst, offset_);
   PutVarint64(dst, size_);
 }
@@ -61,8 +62,10 @@ Status Footer::DecodeFrom(Slice* input) {
   return result;
 }
 
+// TODO: 阅读如何读取block
 Status ReadBlock(RandomAccessFile* file, const ReadOptions& options,
                  const BlockHandle& handle, BlockContents* result) {
+  // 准备BlockContents
   result->data = Slice();
   result->cachable = false;
   result->heap_allocated = false;

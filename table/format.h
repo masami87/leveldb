@@ -18,6 +18,7 @@ class Block;
 class RandomAccessFile;
 struct ReadOptions;
 
+// NOTE: 用来指明block的位置和大小
 // BlockHandle is a pointer to the extent of a file that stores a data
 // block or a meta block.
 class BlockHandle {
@@ -43,6 +44,8 @@ class BlockHandle {
   uint64_t size_;
 };
 
+// NOTE: 用来放在每个table file的结尾，并且是固定大小
+// 具体看table_format.md
 // Footer encapsulates the fixed information stored at the tail
 // end of every table file.
 class Footer {

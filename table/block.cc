@@ -19,6 +19,7 @@ namespace leveldb {
 
 inline uint32_t Block::NumRestarts() const {
   assert(size_ >= sizeof(uint32_t));
+  // NOTE: 最后一个uint32就是该block的restarts_num
   return DecodeFixed32(data_ + size_ - sizeof(uint32_t));
 }
 
@@ -56,11 +57,14 @@ static inline const char* DecodeEntry(const char* p, const char* limit,
                                       uint32_t* shared, uint32_t* non_shared,
                                       uint32_t* value_length) {
   if (limit - p < 3) return nullptr;
+  // NOTE: 取每个变长编码值的第一个字节，注意0代表编码结束，1代表没结束
+  // 因此如果只编码成1个字节，那么第一个字节的值就是原始值
   *shared = reinterpret_cast<const uint8_t*>(p)[0];
   *non_shared = reinterpret_cast<const uint8_t*>(p)[1];
   *value_length = reinterpret_cast<const uint8_t*>(p)[2];
   if ((*shared | *non_shared | *value_length) < 128) {
     // Fast path: all three values are encoded in one byte each
+    // 这里是个快速判断，判断这三个值都是编码成1个字节的情况
     p += 3;
   } else {
     if ((p = GetVarint32Ptr(p, limit, shared)) == nullptr) return nullptr;
@@ -145,9 +149,11 @@ class Block::Iter : public Iterator {
 
     // Scan backwards to a restart point before current_
     const uint32_t original = current_;
+    // 寻找当前entry所在的restart部分
     while (GetRestartPoint(restart_index_) >= original) {
       if (restart_index_ == 0) {
         // No more entries
+        // NOTE: 因为前面已经没有entry, 此时将迭代器置为Invalid
         current_ = restarts_;
         restart_index_ = num_restarts_;
         return;
@@ -161,6 +167,7 @@ class Block::Iter : public Iterator {
     } while (ParseNextKey() && NextEntryOffset() < original);
   }
 
+  // 二分查找找到key == target 的key-value
   void Seek(const Slice& target) override {
     // Binary search in restart array to find the last restart point
     // with a key < target
@@ -217,7 +224,7 @@ class Block::Iter : public Iterator {
     }
     // Linear search (within restart block) for first key >= target
     while (true) {
-      if (!ParseNextKey()) {
+      if (!ParseNextKey()) { // NOTE: 这里可能是出错或者是后面已经没有entry了
         return;
       }
       if (Compare(key_, target) >= 0) {
@@ -247,8 +254,9 @@ class Block::Iter : public Iterator {
     value_.clear();
   }
 
+  // NOTE: 核心方法，用来解析下一个key-value
   bool ParseNextKey() {
-    current_ = NextEntryOffset();
+    current_ = NextEntryOffset(); // 讲current_指针设为下一个entry起始位置的offset
     const char* p = data_ + current_;
     const char* limit = data_ + restarts_;  // Restarts come right after data
     if (p >= limit) {
@@ -262,6 +270,7 @@ class Block::Iter : public Iterator {
     uint32_t shared, non_shared, value_length;
     p = DecodeEntry(p, limit, &shared, &non_shared, &value_length);
     if (p == nullptr || key_.size() < shared) {
+      // 注意key_.size()显然不应该小于shared
       CorruptionError();
       return false;
     } else {
@@ -270,6 +279,7 @@ class Block::Iter : public Iterator {
       value_ = Slice(p + non_shared, value_length);
       while (restart_index_ + 1 < num_restarts_ &&
              GetRestartPoint(restart_index_ + 1) < current_) {
+        // 如果当前current_已经进入了下一个restart_point，那么需要更新restart_index_
         ++restart_index_;
       }
       return true;
@@ -277,6 +287,7 @@ class Block::Iter : public Iterator {
   }
 };
 
+// NOTE: 生成一个block的迭代器
 Iterator* Block::NewIterator(const Comparator* comparator) {
   if (size_ < sizeof(uint32_t)) {
     return NewErrorIterator(Status::Corruption("bad block contents"));
