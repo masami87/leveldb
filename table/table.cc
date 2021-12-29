@@ -166,6 +166,7 @@ Iterator* Table::BlockReader(void* arg, const ReadOptions& options,
   if (s.ok()) {
     BlockContents contents;
     if (block_cache != nullptr) {
+      // TODO: 看cache部分
       char cache_key_buffer[16];
       EncodeFixed64(cache_key_buffer, table->rep_->cache_id);
       EncodeFixed64(cache_key_buffer + 8, handle.offset());
@@ -194,6 +195,7 @@ Iterator* Table::BlockReader(void* arg, const ReadOptions& options,
   Iterator* iter;
   if (block != nullptr) {
     iter = block->NewIterator(table->rep_->options.comparator);
+    // NOTE: 注册Cleanup这样在delete iter时会调用这些函数来释放block
     if (cache_handle == nullptr) {
       iter->RegisterCleanup(&DeleteBlock, block, nullptr);
     } else {
@@ -216,6 +218,7 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
                                                 const Slice&)) {
   Status s;
   Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
+  // NOTE: 在index_block中寻找key
   iiter->Seek(k);
   if (iiter->Valid()) {
     Slice handle_value = iiter->value();
@@ -226,8 +229,10 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
       // Not found
     } else {
       Iterator* block_iter = BlockReader(this, options, iiter->value());
+      // NOTE: 在data_block中寻找key
       block_iter->Seek(k);
       if (block_iter->Valid()) {
+        // 找到指定key, value并且调用函数
         (*handle_result)(arg, block_iter->key(), block_iter->value());
       }
       s = block_iter->status();
@@ -251,6 +256,7 @@ uint64_t Table::ApproximateOffsetOf(const Slice& key) const {
     Slice input = index_iter->value();
     Status s = handle.DecodeFrom(&input);
     if (s.ok()) {
+      // NOTE: 注意只返回大概的offset，因此只找到block的offset即可
       result = handle.offset();
     } else {
       // Strange: we can't decode the block handle in the index block.

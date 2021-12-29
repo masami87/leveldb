@@ -62,7 +62,6 @@ Status Footer::DecodeFrom(Slice* input) {
   return result;
 }
 
-// TODO: 阅读如何读取block
 Status ReadBlock(RandomAccessFile* file, const ReadOptions& options,
                  const BlockHandle& handle, BlockContents* result) {
   // 准备BlockContents
@@ -100,6 +99,8 @@ Status ReadBlock(RandomAccessFile* file, const ReadOptions& options,
   switch (data[n]) {
     case kNoCompression:
       if (data != buf) {
+        // NOTE: File implementation 将Silce contents里面的data指针设为别的data，那么就直接用它.
+        // buf 是文件读取时使用的缓冲区
         // File implementation gave us pointer to some other data.
         // Use it directly under the assumption that it will be live
         // while the file is open.
