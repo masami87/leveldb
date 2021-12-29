@@ -24,7 +24,7 @@
 
 namespace leveldb {
 
-// NOTE: 自定义的字符串类
+// NOTE: 自定义的字符串类，注意Slice是没有data的所有权的
 class LEVELDB_EXPORT Slice {
  public:
   // Create an empty slice.

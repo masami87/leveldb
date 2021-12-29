@@ -32,17 +32,17 @@ struct TableBuilder::Rep {
                          ? nullptr
                          : new FilterBlockBuilder(opt.filter_policy)),
         pending_index_entry(false) {
-    index_block_options.block_restart_interval = 1;
+    index_block_options.block_restart_interval = 1; // NOTE: index_block的block_restart_interval都是为1，也就是不做前缀压缩
   }
 
   Options options;
   Options index_block_options;
-  WritableFile* file;
+  WritableFile* file; // 要生成的.sst文件
   uint64_t offset;
   Status status;
-  BlockBuilder data_block;
-  BlockBuilder index_block;
-  std::string last_key;
+  BlockBuilder data_block; // 数据区builder
+  BlockBuilder index_block; // 索引builder
+  std::string last_key; // 上一个key，新插入的key必须更大
   int64_t num_entries;
   bool closed;  // Either Finish() or Abandon() has been called.
   FilterBlockBuilder* filter_block;
@@ -96,14 +96,15 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
   assert(!r->closed);
   if (!ok()) return;
   if (r->num_entries > 0) {
+    // NOTE: 确保当前要插入的key大于上一条插入的key
     assert(r->options.comparator->Compare(key, Slice(r->last_key)) > 0);
   }
 
-  if (r->pending_index_entry) {
+  if (r->pending_index_entry) { // NOTE: 当data_block为空时
     assert(r->data_block.empty());
     r->options.comparator->FindShortestSeparator(&r->last_key, key);
     std::string handle_encoding;
-    r->pending_handle.EncodeTo(&handle_encoding);
+    r->pending_handle.EncodeTo(&handle_encoding); // handle_encoding记录每个data_block的offset和size
     r->index_block.Add(r->last_key, Slice(handle_encoding));
     r->pending_index_entry = false;
   }
@@ -128,8 +129,10 @@ void TableBuilder::Flush() {
   if (!ok()) return;
   if (r->data_block.empty()) return;
   assert(!r->pending_index_entry);
+  // NOTE: 实际就是调用下面的WriteBlock
   WriteBlock(&r->data_block, &r->pending_handle);
   if (ok()) {
+    // 重置pending_index_entry并且Flush
     r->pending_index_entry = true;
     r->status = r->file->Flush();
   }
@@ -139,6 +142,7 @@ void TableBuilder::Flush() {
 }
 
 void TableBuilder::WriteBlock(BlockBuilder* block, BlockHandle* handle) {
+  // NOTE: File format
   // File format contains a sequence of blocks where each block has:
   //    block_data: uint8[n]
   //    type: uint8
@@ -155,6 +159,7 @@ void TableBuilder::WriteBlock(BlockBuilder* block, BlockHandle* handle) {
       block_contents = raw;
       break;
 
+    // TODO: 阅读压缩算法
     case kSnappyCompression: {
       std::string* compressed = &r->compressed_output;
       if (port::Snappy_Compress(raw.data(), raw.size(), compressed) &&
@@ -174,6 +179,7 @@ void TableBuilder::WriteBlock(BlockBuilder* block, BlockHandle* handle) {
   block->Reset();
 }
 
+// NOTE: 写入block_contents和type(1 byte) + crc32c(4 byte)
 void TableBuilder::WriteRawBlock(const Slice& block_contents,
                                  CompressionType type, BlockHandle* handle) {
   Rep* r = rep_;
@@ -181,6 +187,7 @@ void TableBuilder::WriteRawBlock(const Slice& block_contents,
   handle->set_size(block_contents.size());
   r->status = r->file->Append(block_contents);
   if (r->status.ok()) {
+    // NOTE: 写入type和crc32c
     char trailer[kBlockTrailerSize];
     trailer[0] = type;
     uint32_t crc = crc32c::Value(block_contents.data(), block_contents.size());
@@ -197,6 +204,7 @@ Status TableBuilder::status() const { return rep_->status; }
 
 Status TableBuilder::Finish() {
   Rep* r = rep_;
+  // NOTE: 先调用一次Flush
   Flush();
   assert(!r->closed);
   r->closed = true;
