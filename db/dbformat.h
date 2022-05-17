@@ -14,6 +14,7 @@
 #include "leveldb/filter_policy.h"
 #include "leveldb/slice.h"
 #include "leveldb/table_builder.h"
+
 #include "util/coding.h"
 #include "util/logging.h"
 
@@ -170,6 +171,8 @@ inline int InternalKeyComparator::Compare(const InternalKey& a,
 
 inline bool ParseInternalKey(const Slice& internal_key,
                              ParsedInternalKey* result) {
+  // AppendInternalKey的逆过程
+  //| User key (string) | sequence number (7 bytes) | value type (1 byte) |
   const size_t n = internal_key.size();
   if (n < 8) return false;
   uint64_t num = DecodeFixed64(internal_key.data() + n - 8);
@@ -202,7 +205,8 @@ class LookupKey {
   Slice user_key() const { return Slice(kstart_, end_ - kstart_ - 8); }
 
  private:
-  // We construct a char array of the form:
+  // NOTE: | Size (Varint32)| User key (string) | sequence number (7 bytes) |
+  // value type (1 byte) | We construct a char array of the form:
   //    klength  varint32               <-- start_
   //    userkey  char[klength]          <-- kstart_
   //    tag      uint64

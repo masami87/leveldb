@@ -19,7 +19,10 @@ static uint64_t PackSequenceAndType(uint64_t seq, ValueType t) {
 }
 
 void AppendInternalKey(std::string* result, const ParsedInternalKey& key) {
+  // | User key (string) | sequence number (7 bytes) | value type (1 byte) |
+  // 首先放入key的内容
   result->append(key.user_key.data(), key.user_key.size());
+  // 然后放入SequenceNumber和type
   PutFixed64(result, PackSequenceAndType(key.sequence, key.type));
 }
 

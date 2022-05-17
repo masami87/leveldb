@@ -56,6 +56,7 @@ class BytewiseComparatorImpl : public Comparator {
     size_t n = key->size();
     for (size_t i = 0; i < n; i++) {
       const uint8_t byte = (*key)[i];
+      // 从前往后找到第一个字节不是0xff，把它加1即可
       if (byte != static_cast<uint8_t>(0xff)) {
         (*key)[i] = byte + 1;
         key->resize(i + 1);
@@ -68,6 +69,7 @@ class BytewiseComparatorImpl : public Comparator {
 }  // namespace
 
 const Comparator* BytewiseComparator() {
+  // TODO: 什么是NoDestructor?
   static NoDestructor<BytewiseComparatorImpl> singleton;
   return singleton.get();
 }
