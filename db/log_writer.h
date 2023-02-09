@@ -17,6 +17,7 @@ class WritableFile;
 
 namespace log {
 
+// NOTE: 写日志
 class Writer {
  public:
   // Create a writer that will append data to "*dest".
@@ -45,6 +46,7 @@ class Writer {
   // crc32c values for all supported record types.  These are
   // pre-computed to reduce the overhead of computing the crc of the
   // record type stored in the header.
+  // NOTE: 预先算好type的crc
   uint32_t type_crc_[kMaxRecordType + 1];
 };
 

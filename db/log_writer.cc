@@ -41,6 +41,7 @@ Status Writer::AddRecord(const Slice& slice) {
   Status s;
   bool begin = true;
   do {
+    // 计算当前block的可用空间
     const int leftover = kBlockSize - block_offset_;
     assert(leftover >= 0);
     if (leftover < kHeaderSize) {
@@ -62,7 +63,7 @@ Status Writer::AddRecord(const Slice& slice) {
     RecordType type;
     const bool end = (left == fragment_length);
     if (begin && end) {
-      type = kFullType;
+      type = kFullType; // 一次性全部包含就是full
     } else if (begin) {
       type = kFirstType;
     } else if (end) {
@@ -71,6 +72,7 @@ Status Writer::AddRecord(const Slice& slice) {
       type = kMiddleType;
     }
 
+    // 日志写入磁盘
     s = EmitPhysicalRecord(type, ptr, fragment_length);
     ptr += fragment_length;
     left -= fragment_length;
